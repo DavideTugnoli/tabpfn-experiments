@@ -51,7 +51,7 @@ warnings.filterwarnings('ignore')
 DEFAULT_CONFIG = {
     # Experimental design
     'train_sizes': [20, 50, 100, 200, 500],
-    'n_repetitions': 10,
+    'n_repetitions': 100,
     'test_size': 2000,
     
     # Model parameters
