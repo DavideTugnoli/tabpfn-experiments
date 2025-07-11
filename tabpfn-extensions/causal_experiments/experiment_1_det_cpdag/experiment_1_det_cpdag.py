@@ -189,6 +189,14 @@ def run_with_dag_knowledge(X_train: np.ndarray, X_test: np.ndarray, dag: Dict[in
         # Force clipping as emergency measure
         X_train = np.clip(X_train, -100, 100)
     
+    # INTENSIVE DEBUG: Print detailed data stats before fitting
+    print(f"\n=== DEBUG run_with_dag_knowledge BEFORE FIT ===")
+    print(f"train_size={train_size}, rep={repetition}, algorithm={algorithm}")
+    print(f"X_train shape: {X_train.shape}, dtype: {X_train.dtype}")
+    print(f"X_train stats: min={np.min(X_train):.6f}, max={np.max(X_train):.6f}, mean={np.mean(X_train):.6f}, std={np.std(X_train):.6f}")
+    print(f"X_train finite check: has_inf={np.any(np.isinf(X_train))}, has_nan={np.any(np.isnan(X_train))}")
+    print(f"DAG: {dag}")
+    
     model.fit(torch.from_numpy(X_train).float())
     X_synth = generate_synthetic_data_quiet(
         model, config['test_size'], dag=dag, 
@@ -240,6 +248,14 @@ def run_with_cpdag_knowledge(X_train: np.ndarray, X_test: np.ndarray, cpdag: np.
         print(f"X_train stats: min={np.min(X_train)}, max={np.max(X_train)}, has_inf={np.any(np.isinf(X_train))}, has_nan={np.any(np.isnan(X_train))}")
         # Force clipping as emergency measure
         X_train = np.clip(X_train, -100, 100)
+    
+    # INTENSIVE DEBUG: Print detailed data stats before fitting
+    print(f"\n=== DEBUG run_with_cpdag_knowledge BEFORE FIT ===")
+    print(f"train_size={train_size}, rep={repetition}, algorithm={algorithm}")
+    print(f"X_train shape: {X_train.shape}, dtype: {X_train.dtype}")
+    print(f"X_train stats: min={np.min(X_train):.6f}, max={np.max(X_train):.6f}, mean={np.mean(X_train):.6f}, std={np.std(X_train):.6f}")
+    print(f"X_train finite check: has_inf={np.any(np.isinf(X_train))}, has_nan={np.any(np.isnan(X_train))}")
+    print(f"CPDAG shape: {cpdag.shape if hasattr(cpdag, 'shape') else 'no shape'}")
     
     model.fit(torch.from_numpy(X_train).float())
     X_synth = generate_synthetic_data_quiet(
@@ -302,6 +318,14 @@ def run_vanilla_tabpfn(X_train: np.ndarray, X_test: np.ndarray, col_names: List[
         print(f"X_train_reordered stats: min={np.min(X_train_reordered)}, max={np.max(X_train_reordered)}, has_inf={np.any(np.isinf(X_train_reordered))}, has_nan={np.any(np.isnan(X_train_reordered))}")
         # Force clipping as emergency measure
         X_train_reordered = np.clip(X_train_reordered, -100, 100)
+    
+    # INTENSIVE DEBUG: Print detailed data stats before fitting
+    print(f"\n=== DEBUG run_vanilla_tabpfn BEFORE FIT ===")
+    print(f"train_size={train_size}, rep={repetition}, algorithm={algorithm}, order={column_order_name}")
+    print(f"X_train_reordered shape: {X_train_reordered.shape}, dtype: {X_train_reordered.dtype}")
+    print(f"X_train_reordered stats: min={np.min(X_train_reordered):.6f}, max={np.max(X_train_reordered):.6f}, mean={np.mean(X_train_reordered):.6f}, std={np.std(X_train_reordered):.6f}")
+    print(f"X_train_reordered finite check: has_inf={np.any(np.isinf(X_train_reordered))}, has_nan={np.any(np.isnan(X_train_reordered))}")
+    print(f"column_order: {column_order}")
     
     model = create_tabpfn_model(config)
     if categorical_cols_reordered:
