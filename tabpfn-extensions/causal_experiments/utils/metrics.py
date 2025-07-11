@@ -224,12 +224,112 @@ def calculate_kmarginal_tvd(
     mean_tvd = mean_total_density_diff / 2.0
     return mean_tvd
 
+# --- Mutual Information (CORRECTED) ---
+def calculate_mutual_information_difference(
+    real_data: pd.DataFrame,
+    synthetic_data: pd.DataFrame,
+    cat_cols: List[str] = None
+) -> Dict[str, float]:
+    """
+    Calculates Mutual Information Matrix difference using SynthEval.
+    """
+    if cat_cols is None:
+        cat_cols = []
+
+    evaluator = SynthEval(real_data, cat_cols=cat_cols)
+    original_savefig = plt.savefig
+    plt.savefig = lambda *args, **kwargs: None
+    
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            evaluator.evaluate(synthetic_data, None, mi_diff={})
+    finally:
+        plt.savefig = original_savefig
+
+    try:
+        val = float(evaluator._raw_results["mi_diff"]["mutual_inf_diff"])
+    except Exception:
+        val = -1.0
+    return {"max_mi_difference": val, "mean_mi_difference": val}
+
+# --- KS Distance (CORRECTED) ---
+def calculate_ks_distance(
+    real_data: pd.DataFrame,
+    synthetic_data: pd.DataFrame,
+    cat_cols: List[str] = None
+) -> Dict[str, float]:
+    """
+    Calculates Kolmogorov-Smirnov distance using SynthEval.
+    Returns the average KS test statistic.
+    """
+    if cat_cols is None:
+        cat_cols = []
+
+    evaluator = SynthEval(real_data, cat_cols=cat_cols)
+    original_savefig = plt.savefig
+    plt.savefig = lambda *args, **kwargs: None
+    
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            evaluator.evaluate(
+                synthetic_data, 
+                None, 
+                ks_test={"sig_lvl": 0.05, "n_perms": 1000}
+            )
+    finally:
+        plt.savefig = original_savefig
+
+    try:
+        # SynthEval returns "avg stat" for the average KS statistic
+        val = float(evaluator._raw_results["ks_test"]["avg stat"])
+    except Exception:
+        val = -1.0
+    return {"mean_ks_distance": val}
+
+
+# --- NNAA (CORRECTED) ---
+def calculate_nnaa(
+    real_data: pd.DataFrame,
+    synthetic_data: pd.DataFrame,
+    cat_cols: List[str] = None
+) -> Dict[str, float]:
+    """
+    Calculates Nearest Neighbour Adversarial Accuracy using SynthEval.
+    """
+    if cat_cols is None:
+        cat_cols = []
+
+    evaluator = SynthEval(real_data, cat_cols=cat_cols)
+    original_savefig = plt.savefig
+    plt.savefig = lambda *args, **kwargs: None
+    
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            evaluator.evaluate(
+                synthetic_data, 
+                None, 
+                nnaa={"n_resample": 30}
+            )
+    finally:
+        plt.savefig = original_savefig
+
+    try:
+        val = float(evaluator._raw_results["nnaa"]["avg"])
+    except Exception:
+        val = -1.0
+    return {"nnaa": val}
+
 # --- Section 2: Wrapper Class for Usability ---
 
 class FaithfulDataEvaluator:
     """
-    A wrapper class that provides a single entry point to calculate all
-    faithful metrics, maintaining usability for experiments.
+    Updated wrapper class for all corrected metrics.
     """
     def evaluate(
         self,
@@ -239,7 +339,7 @@ class FaithfulDataEvaluator:
         k_for_kmarginal: int = 2
     ) -> Dict[str, float]:
         """
-        Runs the complete evaluation by calling the standalone metric functions.
+        Runs the complete evaluation by calling the corrected metric functions.
 
         Args:
             real_data: The DataFrame of real data.
@@ -255,13 +355,26 @@ class FaithfulDataEvaluator:
 
         results = {}
 
-        # Call each standalone function
+        # Correlation metrics
         corr_metrics = calculate_correlation_metrics(real_data, synthetic_data, categorical_columns)
         results.update(corr_metrics)
 
+        # Propensity metrics
         results['propensity_metrics'] = calculate_propensity_metrics(real_data, synthetic_data, categorical_columns)
 
+        # K-marginal TVD
         results['k_marginal_tvd'] = calculate_kmarginal_tvd(real_data, synthetic_data, categorical_columns, k=k_for_kmarginal)
+
+        # Corrected new metrics
+        mi_metrics = calculate_mutual_information_difference(real_data, synthetic_data, categorical_columns)
+        results.update(mi_metrics)
+
+        ks_metrics = calculate_ks_distance(real_data, synthetic_data, categorical_columns)
+        results.update(ks_metrics)
+
+
+        nnaa_metrics = calculate_nnaa(real_data, synthetic_data, categorical_columns)
+        results.update(nnaa_metrics)
 
         return results
 
@@ -307,6 +420,17 @@ if __name__ == '__main__':
     )
     print(f"K-Marginal TVD: {km_res:.6f}")
 
+    # New metrics
+    mi_res = calculate_mutual_information_difference(sample_real_data, sample_synthetic_data, cat_cols_for_eval)
+    print(f"Mutual Information metrics: {mi_res}")
+
+    ks_res = calculate_ks_distance(sample_real_data, sample_synthetic_data, cat_cols_for_eval)
+    print(f"KS Distance: {ks_res}")
+
+
+    nnaa_res = calculate_nnaa(sample_real_data, sample_synthetic_data, cat_cols_for_eval)
+    print(f"NNAA: {nnaa_res}")
+
     # --- USAGE 2: Using the convenient wrapper class ---
     print("\n--- 2. Using the wrapper class for all metrics ---")
     evaluator = FaithfulDataEvaluator()
@@ -318,5 +442,5 @@ if __name__ == '__main__':
     )
     
     for metric_name, value in all_metrics.items():
-        print(f"{metric_name:<25}: {value:.6f}")
+        print(f"{metric_name:<25}: {value:.6f}" if isinstance(value, float) else f"{metric_name:<25}: {value}")
     print("---------------------------------------------")

@@ -1,5 +1,5 @@
 """
-Experiment 1 IMPROVED: Effect of DAG and training set size.
+Experiment 1: Effect of DAG and training set size.
 
 This experiment compares TabPFN synthetic data quality when provided with:
 - No DAG (vanilla TabPFN with column reordering)
@@ -7,9 +7,9 @@ This experiment compares TabPFN synthetic data quality when provided with:
 - CPDAG (equivalence class of DAGs)
 
 Usage:
-    python experiment_1_det_cpdag_improved.py                    # Fair comparison (topological order)
-    python experiment_1_det_cpdag_improved.py --order original  # Original order (neutral)
-    python experiment_1_det_cpdag_improved.py --order worst     # Worst case for vanilla
+    python experiment_1_det_cpdag.py                    # Fair comparison (topological order)
+    python experiment_1_det_cpdag.py --order original  # Original order (neutral)
+    python experiment_1_det_cpdag.py --order worst     # Worst case for vanilla
 """
 
 import sys
@@ -61,13 +61,23 @@ DEFAULT_CONFIG = {
     'column_order_strategy': 'original',
     
     # Evaluation metrics
-    'metrics': ['mean_corr_difference', 'max_corr_difference', 'propensity_metrics', 'k_marginal_tvd'],
+    'metrics': [
+        'mean_corr_difference',
+        'max_corr_difference',
+        'propensity_metrics',
+        'k_marginal_tvd',
+        'mean_mi_difference',
+        'max_mi_difference',
+        'mean_ks_distance',
+        'nnaa',
+    ],
     
     # Experimental cases
     'cases': [
-        {'algorithm': 'vanilla', 'graph_type': None},
-        {'algorithm': 'dag', 'graph_type': 'correct'},
-        {'algorithm': 'cpdag', 'graph_type': 'cpdag'},
+        {'algorithm': 'vanilla', 'graph_type': None, 'column_order_strategy': 'original'},
+        {'algorithm': 'vanilla', 'graph_type': None, 'column_order_strategy': 'worst'},
+        {'algorithm': 'dag', 'graph_type': 'correct', 'column_order_strategy': None},
+        {'algorithm': 'cpdag', 'graph_type': 'cpdag', 'column_order_strategy': None},
     ],
 }
 
@@ -319,9 +329,9 @@ def validate_data_integrity(X_train: np.ndarray, X_test: np.ndarray,
     else:
         hash_check_dict[key] = (train_hash, test_hash)
 
-def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None, 
+def run_experiment_1(config: Optional[Dict[str, Any]] = None, 
                              output_dir: str = "experiment_1_results", 
-                             resume: bool = True, cases_filter: Optional[List[str]] = None) -> List[OrderedDict]:
+                             resume: bool = True) -> List[OrderedDict]:
     """
     Run Experiment 1: Effect of DAG and training set size.
     
@@ -334,7 +344,6 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
         config: Optional configuration overrides
         output_dir: Output directory name
         resume: Whether to resume from checkpoint
-        cases_filter: List of algorithm names to run (e.g., ['vanilla', 'dag'])
         
     Returns:
         List of result dictionaries
@@ -344,10 +353,6 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
     if config is not None:
         final_config.update(config)
     
-    # Filter cases if specified
-    if cases_filter:
-        final_config['cases'] = [case for case in final_config['cases'] if case['algorithm'] in cases_filter]
-    
     # Setup directories
     script_dir = Path(__file__).parent
     output_dir_path = script_dir / 'results'
@@ -355,7 +360,7 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
     data_samples_dir = script_dir / 'data_samples'
     data_samples_dir.mkdir(exist_ok=True)
     
-    print(f"Experiment 1 IMPROVED - Output dir: {output_dir_path}")
+    print(f"Experiment 1 - Output dir: {output_dir_path}")
     print(f"Config: {json.dumps(final_config, indent=2)}")
     
     # Get experimental setup
@@ -363,32 +368,8 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
     cpdag, _, _ = get_cpdag_and_config(final_config['include_categorical'])
     X_test_original = generate_scm_data(final_config['test_size'], 123, final_config['include_categorical'])
     
-    # Get column ordering for vanilla case
+    # Get column orderings for vanilla cases
     available_orderings = get_ordering_strategies(correct_dag)
-    column_order_name = final_config.get('column_order_strategy')
-    
-    if column_order_name not in available_orderings:
-        raise ValueError(f"Unknown ordering strategy: {column_order_name}. "
-                        f"Available: {list(available_orderings.keys())}")
-    
-    vanilla_column_order = available_orderings[column_order_name]
-    print(f"Column order for vanilla case: {column_order_name} = {vanilla_column_order}")
-    
-    # Determine output file name based on cases being run
-    if cases_filter and len(cases_filter) == 1:
-        if cases_filter[0] == 'vanilla':
-            strategy = final_config.get('column_order_strategy')
-            raw_results_file = output_dir_path / f"raw_results_vanilla_{strategy}.csv"
-        elif cases_filter[0] == 'dag':
-            raw_results_file = output_dir_path / f"raw_results_dag_correct.csv"
-        elif cases_filter[0] == 'cpdag':
-            raw_results_file = output_dir_path / f"raw_results_cpdag.csv"
-        else:
-            strategy = final_config.get('column_order_strategy')
-            raw_results_file = output_dir_path / f"raw_results_{strategy}.csv"
-    else:
-        strategy = final_config.get('column_order_strategy')
-        raw_results_file = output_dir_path / f"raw_results_{strategy}.csv"
     
     if resume:
         results_so_far, start_train_idx, start_rep = get_checkpoint_info(output_dir_path)
@@ -409,10 +390,21 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
         for case in final_config['cases']:
             algorithm = case['algorithm']
             graph_type = case['graph_type']
-            
+            column_order_strategy = case.get('column_order_strategy', None)
             print(f"\n=== Running algorithm: {algorithm}" + 
-                  (f" (graph: {graph_type})" if graph_type else "") + " ===")
-            
+                  (f" (graph: {graph_type})" if graph_type else "") +
+                  (f", order: {column_order_strategy}" if column_order_strategy else "") + " ===")
+
+            # Set output file for this case
+            if algorithm == 'vanilla':
+                raw_results_file = output_dir_path / f"raw_results_vanilla_{column_order_strategy}.csv"
+            elif algorithm == 'dag':
+                raw_results_file = output_dir_path / "raw_results_dag_correct.csv"
+            elif algorithm == 'cpdag':
+                raw_results_file = output_dir_path / "raw_results_cpdag.csv"
+            else:
+                raw_results_file = output_dir_path / f"raw_results_{algorithm}.csv"
+
             for train_idx, train_size in enumerate(final_config['train_sizes']):
                 for rep in range(final_config['n_repetitions']):
                     if config_idx < completed:
@@ -428,10 +420,14 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
                     
                     # Run specific algorithm
                     if algorithm == 'vanilla':
+                        if column_order_strategy not in available_orderings:
+                            raise ValueError(f"Unknown column_order_strategy: {column_order_strategy}. "
+                                             f"Available: {list(available_orderings.keys())}")
+                        column_order = available_orderings[column_order_strategy]
                         result_row, X_synth, col_names_reordered = run_vanilla_tabpfn(
                             X_train_original, X_test_original, col_names, categorical_cols,
-                            vanilla_column_order, final_config, seed, train_size, rep, 
-                            algorithm, column_order_name, data_samples_dir
+                            column_order, final_config, seed, train_size, rep, 
+                            algorithm, column_order_strategy, data_samples_dir
                         )
                     elif algorithm == 'dag':
                         result_row, X_synth = run_with_dag_knowledge(
@@ -458,6 +454,7 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
                     progress_pct = 100 * completed / total_iterations
                     print(f"    Progress ({algorithm}" + 
                           (f"/{graph_type}" if graph_type else "") + 
+                          (f"/{column_order_strategy}" if column_order_strategy else "") +
                           f"): {completed}/{total_iterations} ({progress_pct:.1f}%)")
     
     except KeyboardInterrupt:
@@ -472,13 +469,12 @@ def run_experiment_1_improved(config: Optional[Dict[str, Any]] = None,
     return results_so_far
 
 def main():
-    """Main CLI interface for Experiment 1 Improved."""
-    parser = argparse.ArgumentParser(description='Run Experiment 1 (Improved Version)')
+    """Main CLI interface for Experiment 1."""
+    parser = argparse.ArgumentParser(description='Run Experiment 1')
     parser.add_argument('--no-resume', action='store_true',
                        help='Start fresh (ignore checkpoint)')
-    parser.add_argument('--order', type=str, default=None,
-                       choices=['original', 'topological', 'worst', 'random', 'both'],
-                       help='Column ordering strategy')
+    parser.add_argument('--cases', type=str, nargs='*', default=None,
+                       help='Specific cases to run (e.g., vanilla dag cpdag)')
     parser.add_argument('--output', type=str, default=None,
                        help='Output directory (auto-generated if not specified)')
     
@@ -489,7 +485,7 @@ def main():
     cpdag, _, _ = get_cpdag_and_config(False)
     
     print("=" * 60)
-    print("EXPERIMENT 1 IMPROVED: DAG and Training Set Size Effects")
+    print("EXPERIMENT 1: DAG and Training Set Size Effects")
     print("=" * 60)
     print("\nCurrent SCM structure:")
     print_dag_info(dag, col_names)
@@ -500,60 +496,25 @@ def main():
     output_dir = script_dir / 'results'
     output_dir.mkdir(exist_ok=True)
     
-    # Determine which orderings to run for vanilla
-    if args.order is None or args.order == 'both':
-        vanilla_orderings = ['original', 'topological']
-    else:
-        vanilla_orderings = [args.order]
+    # Prepare configuration
+    config = DEFAULT_CONFIG.copy()
     
-    all_results = []
+    # Filter cases if specified
+    if args.cases:
+        config['cases'] = [case for case in config['cases'] if case['algorithm'] in args.cases]
     
-    # Run DAG and CPDAG only once (they don't depend on column ordering)
-    print(f"\n{'='*50}")
-    print("Running DAG and CPDAG cases (independent of column ordering)")
-    print(f"{'='*50}")
+    print(f"\nRunning cases: {[case['algorithm'] + ('_' + case['column_order_strategy'] if case['column_order_strategy'] else '') for case in config['cases']]}")
     
-    # Run DAG case
-    config_dag = DEFAULT_CONFIG.copy()
-    config_dag['column_order_strategy'] = 'original'  # Doesn't matter for DAG
-    results_dag = run_experiment_1_improved(
-        config=config_dag,
+    # Run all experiments using the configuration
+    all_results = run_experiment_1(
+        config=config,
         output_dir=str(output_dir),
-        resume=not args.no_resume,
-        cases_filter=['dag']
+        resume=not args.no_resume
     )
-    all_results.extend(results_dag)
-    
-    # Run CPDAG case
-    config_cpdag = DEFAULT_CONFIG.copy()
-    config_cpdag['column_order_strategy'] = 'original'  # Doesn't matter for CPDAG
-    results_cpdag = run_experiment_1_improved(
-        config=config_cpdag,
-        output_dir=str(output_dir),
-        resume=not args.no_resume,
-        cases_filter=['cpdag']
-    )
-    all_results.extend(results_cpdag)
-    
-    # Run vanilla cases with different orderings
-    for ordering in vanilla_orderings:
-        print(f"\n{'='*50}")
-        print(f"Running vanilla case with ordering: {ordering}")
-        print(f"{'='*50}")
-        
-        config_vanilla = DEFAULT_CONFIG.copy()
-        config_vanilla['column_order_strategy'] = ordering
-        results_vanilla = run_experiment_1_improved(
-            config=config_vanilla,
-            output_dir=str(output_dir),
-            resume=not args.no_resume,
-            cases_filter=['vanilla']
-        )
-        all_results.extend(results_vanilla)
     
     # Save combined results
     df_final = pd.DataFrame(all_results)
-    final_results_file = output_dir / "results_experiment_1_improved.csv"
+    final_results_file = output_dir / "results_experiment_1.csv"
     df_final.to_csv(final_results_file, index=False, na_rep='')
     print(f"\nAll experiments completed!")
     print(f"Combined results saved to: {final_results_file}")
