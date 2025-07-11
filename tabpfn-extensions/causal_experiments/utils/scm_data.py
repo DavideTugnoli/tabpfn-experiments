@@ -30,13 +30,24 @@ def generate_scm_data(n_samples, random_state=42, include_categorical=False):
         
         # Create mixed data array with proper types
         data = np.column_stack([X1, X2, X3, X4])  # Continuous variables as float32
+        
+        # Safety check: clip extreme outliers (>10 std devs) that could cause numerical issues
+        # Scientific justification: values beyond ±10 sigma are extremely rare (~10^-23 probability)
+        # and often indicate numerical errors rather than meaningful data
+        data = np.clip(data, -10, 10)
         data = data.astype(np.float32)
         
         # Add categorical column as integer
         data_with_cat = np.column_stack([data, X5.astype(int)])
         return data_with_cat
     else:
-        return np.column_stack([X1, X2, X3, X4]).astype(np.float32)
+        data = np.column_stack([X1, X2, X3, X4])
+        
+        # Safety check: clip extreme outliers (>10 std devs) that could cause numerical issues
+        # Scientific justification: values beyond ±10 sigma are extremely rare (~10^-23 probability)
+        # and often indicate numerical errors rather than meaningful data
+        data = np.clip(data, -10, 10)
+        return data.astype(np.float32)
 
 def get_dag_and_config(include_categorical=False):
     """Get DAG and column info."""
