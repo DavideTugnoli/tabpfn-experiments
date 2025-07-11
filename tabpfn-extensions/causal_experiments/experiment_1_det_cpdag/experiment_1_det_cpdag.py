@@ -182,6 +182,13 @@ def run_with_dag_knowledge(X_train: np.ndarray, X_test: np.ndarray, dag: Dict[in
     if categorical_cols:
         model.set_categorical_features(categorical_cols)
     
+    # Debug: Check for infinities before fitting
+    if not np.all(np.isfinite(X_train)):
+        print(f"WARNING: X_train contains non-finite values! Train_size={train_size}, rep={repetition}")
+        print(f"X_train stats: min={np.min(X_train)}, max={np.max(X_train)}, has_inf={np.any(np.isinf(X_train))}, has_nan={np.any(np.isnan(X_train))}")
+        # Force clipping as emergency measure
+        X_train = np.clip(X_train, -100, 100)
+    
     model.fit(torch.from_numpy(X_train).float())
     X_synth = generate_synthetic_data_quiet(
         model, config['test_size'], dag=dag, 
@@ -226,6 +233,13 @@ def run_with_cpdag_knowledge(X_train: np.ndarray, X_test: np.ndarray, cpdag: np.
     
     if categorical_cols:
         model.set_categorical_features(categorical_cols)
+    
+    # Debug: Check for infinities before fitting
+    if not np.all(np.isfinite(X_train)):
+        print(f"WARNING: X_train contains non-finite values! Train_size={train_size}, rep={repetition}")
+        print(f"X_train stats: min={np.min(X_train)}, max={np.max(X_train)}, has_inf={np.any(np.isinf(X_train))}, has_nan={np.any(np.isnan(X_train))}")
+        # Force clipping as emergency measure
+        X_train = np.clip(X_train, -100, 100)
     
     model.fit(torch.from_numpy(X_train).float())
     X_synth = generate_synthetic_data_quiet(
@@ -281,6 +295,14 @@ def run_vanilla_tabpfn(X_train: np.ndarray, X_test: np.ndarray, col_names: List[
     X_test_reordered, _, _ = reorder_data_and_columns(
         X_test, col_names, categorical_cols, column_order
     )
+    
+    # Debug: Check for infinities before fitting
+    if not np.all(np.isfinite(X_train_reordered)):
+        print(f"WARNING: X_train_reordered contains non-finite values! Train_size={train_size}, rep={repetition}, order={column_order_name}")
+        print(f"X_train_reordered stats: min={np.min(X_train_reordered)}, max={np.max(X_train_reordered)}, has_inf={np.any(np.isinf(X_train_reordered))}, has_nan={np.any(np.isnan(X_train_reordered))}")
+        # Force clipping as emergency measure
+        X_train_reordered = np.clip(X_train_reordered, -100, 100)
+    
     model = create_tabpfn_model(config)
     if categorical_cols_reordered:
         model.set_categorical_features(categorical_cols_reordered)
