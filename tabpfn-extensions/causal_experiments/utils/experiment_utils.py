@@ -8,6 +8,24 @@ def generate_synthetic_data_quiet(model, n_samples, dag=None, cpdag=None, n_perm
     plt.ioff()
     plt.close('all')
     
+    # INTENSIVE DEBUG: Print everything before generation (OUTSIDE stdout suppression)
+    print(f"\n=== DEBUG generate_synthetic_data_quiet ===")
+    print(f"n_samples: {n_samples}")
+    print(f"n_permutations: {n_permutations}")
+    print(f"dag: {dag}")
+    print(f"cpdag type: {type(cpdag)}")
+    if isinstance(cpdag, np.ndarray):
+        print(f"cpdag shape: {cpdag.shape}")
+        print(f"cpdag stats: min={np.min(cpdag)}, max={np.max(cpdag)}")
+    
+    # Check model's fitted data statistics
+    if hasattr(model, 'tabpfn_clf') and hasattr(model.tabpfn_clf, 'X_'):
+        X_fitted = model.tabpfn_clf.X_
+        print(f"Model fitted data shape: {X_fitted.shape}")
+        print(f"Model fitted data stats: min={np.min(X_fitted)}, max={np.max(X_fitted)}")
+        print(f"Model fitted data has_inf: {np.any(np.isinf(X_fitted))}")
+        print(f"Model fitted data has_nan: {np.any(np.isnan(X_fitted))}")
+    
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     sys.stdout = StringIO()
@@ -25,40 +43,32 @@ def generate_synthetic_data_quiet(model, n_samples, dag=None, cpdag=None, n_perm
         if cpdag is not None:
             kwargs['cpdag'] = cpdag
         
-        # INTENSIVE DEBUG: Print everything before generation
-        print(f"\n=== DEBUG generate_synthetic_data_quiet ===")
-        print(f"n_samples: {n_samples}")
-        print(f"n_permutations: {n_permutations}")
-        print(f"dag: {dag}")
-        print(f"cpdag type: {type(cpdag)}")
-        if isinstance(cpdag, np.ndarray):
-            print(f"cpdag shape: {cpdag.shape}")
-            print(f"cpdag stats: min={np.min(cpdag)}, max={np.max(cpdag)}")
-        
-        # Check model's fitted data statistics
-        if hasattr(model, 'tabpfn_clf') and hasattr(model.tabpfn_clf, 'X_'):
-            X_fitted = model.tabpfn_clf.X_
-            print(f"Model fitted data shape: {X_fitted.shape}")
-            print(f"Model fitted data stats: min={np.min(X_fitted)}, max={np.max(X_fitted)}")
-            print(f"Model fitted data has_inf: {np.any(np.isinf(X_fitted))}")
-            print(f"Model fitted data has_nan: {np.any(np.isnan(X_fitted))}")
-        
         try:
-            print("About to call model.generate_synthetic_data...")
+            print("About to call model.generate_synthetic_data...")  # This won't show due to stdout redirect
             X_synthetic = model.generate_synthetic_data(**kwargs).cpu().numpy()
-            print(f"SUCCESS: Generated synthetic data shape: {X_synthetic.shape}")
-            print(f"Generated data stats: min={np.min(X_synthetic)}, max={np.max(X_synthetic)}")
-            print(f"Generated data has_inf: {np.any(np.isinf(X_synthetic))}")
-            print(f"Generated data has_nan: {np.any(np.isnan(X_synthetic))}")
+            print(f"SUCCESS: Generated synthetic data shape: {X_synthetic.shape}")  # This won't show due to stdout redirect
         except Exception as e:
-            print(f"ERROR in generate_synthetic_data: {type(e).__name__}: {str(e)}")
-            print(f"Full error traceback will follow...")
+            # Restore output to see the error
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            print(f"\nERROR in model.generate_synthetic_data:")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {str(e)}")
+            print(f"Generation parameters: {kwargs}")
+            if hasattr(model, 'tabpfn_clf') and hasattr(model.tabpfn_clf, 'X_'):
+                print(f"Model was fitted with data shape: {model.tabpfn_clf.X_.shape}")
+            print(f"About to re-raise the exception...")
             raise
             
     finally:
         sys.stdout = old_stdout
         sys.stderr = old_stderr
         plt.close('all')
+    
+    # Final check on generated data (only if we get here)
+    print(f"Generated data stats: min={np.min(X_synthetic)}, max={np.max(X_synthetic)}")
+    print(f"Generated data has_inf: {np.any(np.isinf(X_synthetic))}")
+    print(f"Generated data has_nan: {np.any(np.isnan(X_synthetic))}")
     
     return X_synthetic
 
