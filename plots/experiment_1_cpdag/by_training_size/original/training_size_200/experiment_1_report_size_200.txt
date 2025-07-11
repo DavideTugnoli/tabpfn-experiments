@@ -1,0 +1,72 @@
+EXPERIMENT 1: ORIGINAL - TRAINING SIZE 200
+======================================================================
+Analysis Date: 2025-07-11 22:17:13
+Training Size: 200
+Number of Repetitions: 10
+
+SUMMARY OF FINDINGS (DAG vs Vanilla vs CPDAG)
+----------------------------------------------------------------------
+
+METRIC: MEAN CORRELATION DIFFERENCE
+  - Vanilla Worst (Mean): 0.0354
+  - Vanilla (Mean):       0.0370
+  - DAG (Mean):           0.0173
+  - CPDAG (Mean):         0.0193
+  - Vanilla vs Vanilla Worst: -4.6% improvement
+  - DAG vs Vanilla:           +53.3% improvement
+  - CPDAG vs Vanilla:         +47.9% improvement
+  - DAG vs CPDAG:             +10.3% improvement
+  - Vanilla Vs Vs Vs Worst: ns (p=0.844986, d=0.064)
+  - Dag Vs Vs Vs Vanilla: ns (p=0.056142, d=-0.693)
+  - Cpdag Vs Vs Vs Vanilla: ** (p=0.004442, d=-1.191)
+  - Dag Vs Vs Vs Cpdag: ns (p=0.758403, d=-0.100)
+
+METRIC: MAX CORRELATION DIFFERENCE
+  - Vanilla Worst (Mean): 0.0749
+  - Vanilla (Mean):       0.0789
+  - DAG (Mean):           0.0351
+  - CPDAG (Mean):         0.0405
+  - Vanilla vs Vanilla Worst: -5.3% improvement
+  - DAG vs Vanilla:           +55.5% improvement
+  - CPDAG vs Vanilla:         +48.7% improvement
+  - DAG vs CPDAG:             +13.2% improvement
+  - Vanilla Vs Vs Vs Worst: ns (p=0.812480, d=0.077)
+  - Dag Vs Vs Vs Vanilla: * (p=0.040537, d=-0.756)
+  - Cpdag Vs Vs Vs Vanilla: ** (p=0.003116, d=-1.265)
+  - Dag Vs Vs Vs Cpdag: ns (p=0.670218, d=-0.139)
+
+METRIC: PROPENSITY MSE
+  - Vanilla Worst (Mean): 0.0013
+  - Vanilla (Mean):       0.0013
+  - DAG (Mean):           0.0013
+  - CPDAG (Mean):         0.0013
+  - Vanilla vs Vanilla Worst: +1.1% improvement
+  - DAG vs Vanilla:           +0.9% improvement
+  - CPDAG vs Vanilla:         -2.3% improvement
+  - DAG vs CPDAG:             +3.1% improvement
+  - Vanilla Vs Vs Vs Worst: ns (p=0.893780, d=-0.043)
+  - Dag Vs Vs Vs Vanilla: ns (p=0.941108, d=-0.024)
+  - Cpdag Vs Vs Vs Vanilla: ns (p=0.736558, d=0.110)
+  - Dag Vs Vs Vs Cpdag: ns (p=0.811659, d=-0.078)
+
+METRIC: K-MARGINAL TVD
+  - Vanilla Worst (Mean): 0.2199
+  - Vanilla (Mean):       0.2183
+  - DAG (Mean):           0.2184
+  - CPDAG (Mean):         0.2170
+  - Vanilla vs Vanilla Worst: +0.7% improvement
+  - DAG vs Vanilla:           -0.1% improvement
+  - CPDAG vs Vanilla:         +0.6% improvement
+  - DAG vs CPDAG:             -0.6% improvement
+  - Vanilla Vs Vs Vs Worst: ns (p=0.426228, d=-0.264)
+  - Dag Vs Vs Vs Vanilla: ns (p=0.973614, d=0.011)
+  - Cpdag Vs Vs Vs Vanilla: ns (p=0.479474, d=-0.233)
+  - Dag Vs Vs Vs Cpdag: ns (p=0.738548, d=0.109)
+
+
+STATISTICAL NOTES
+----------------------------------------------------------------------
+- Paired t-tests used to compare DAG vs Vanilla, CPDAG vs Vanilla, and DAG vs CPDAG conditions
+- Cohen's d for paired samples used as effect size measure
+- All metrics are 'lower is better'
+- Analysis performed for training size 200 only

@@ -2,14 +2,17 @@
 Experiment 1: Effect of DAG and training set size.
 
 This experiment compares TabPFN synthetic data quality when provided with:
-- No DAG (vanilla TabPFN with column reordering)
+- No DAG (vanilla TabPFN with column reordering):
+  * original: Original column order
+  * worst: Worst possible order (maximum causal violations)
+  * topological: Topological order (minimum causal violations)
 - Correct DAG knowledge
 - CPDAG (equivalence class of DAGs)
 
 Usage:
-    python experiment_1_det_cpdag.py                    # Fair comparison (topological order)
-    python experiment_1_det_cpdag.py --order original  # Original order (neutral)
-    python experiment_1_det_cpdag.py --order worst     # Worst case for vanilla
+    python experiment_1_det_cpdag.py                    # Run all cases
+    python experiment_1_det_cpdag.py --cases vanilla    # Run only vanilla cases
+    python experiment_1_det_cpdag.py --no-resume        # Start fresh
 """
 
 import sys
@@ -76,6 +79,7 @@ DEFAULT_CONFIG = {
     'cases': [
         {'algorithm': 'vanilla', 'graph_type': None, 'column_order_strategy': 'original'},
         {'algorithm': 'vanilla', 'graph_type': None, 'column_order_strategy': 'worst'},
+        {'algorithm': 'vanilla', 'graph_type': None, 'column_order_strategy': 'topological'},
         {'algorithm': 'dag', 'graph_type': 'correct', 'column_order_strategy': None},
         {'algorithm': 'cpdag', 'graph_type': 'cpdag', 'column_order_strategy': None},
     ],
