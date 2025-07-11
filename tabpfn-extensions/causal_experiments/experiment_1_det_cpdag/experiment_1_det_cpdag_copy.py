@@ -390,6 +390,78 @@ def run_experiment_1(config=None, output_dir="experiment_1_results", resume=True
     print(f"Total results: {len(results_so_far)}")
     return results_so_far
 
+def test_problematic_combination():
+    """Test the specific combination that causes TabPFN to crash: train_size=20, rep=18, vanilla original."""
+    print("=" * 60)
+    print("TESTING PROBLEMATIC COMBINATION (COPY VERSION)")
+    print("=" * 60)
+    print("Testing: train_size=20, rep=18, algorithm=vanilla, order=original")
+    
+    # Setup exact same configuration as main experiment
+    config = DEFAULT_CONFIG.copy()
+    config['column_order_strategy'] = 'original'
+    
+    # Get experimental setup
+    correct_dag, col_names, categorical_cols = get_dag_and_config(config['include_categorical'])
+    X_test_original = generate_scm_data(config['test_size'], 123, config['include_categorical'])
+    available_orderings = get_ordering_strategies(correct_dag)
+    
+    # Set exact problematic parameters
+    train_size = 20
+    rep = 18
+    seed = config['random_seed_base'] + rep  # 42 + 18 = 60
+    algorithm = 'vanilla'
+    column_order_strategy = 'original'
+    
+    print(f"Parameters: train_size={train_size}, rep={rep}, seed={seed}")
+    print(f"Algorithm: {algorithm}, column_order_strategy={column_order_strategy}")
+    
+    # Setup deterministic mode with exact same seed (same as run_single_configuration)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    try:
+        torch.use_deterministic_algorithms(True)
+    except AttributeError:
+        pass
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    
+    # Generate exact same training data
+    X_train_original = generate_scm_data(train_size, seed, config['include_categorical'])
+    
+    print(f"Generated training data stats:")
+    print(f"  Shape: {X_train_original.shape}, dtype: {X_train_original.dtype}")
+    print(f"  Min: {np.min(X_train_original):.6f}, Max: {np.max(X_train_original):.6f}")
+    print(f"  Mean: {np.mean(X_train_original):.6f}, Std: {np.std(X_train_original):.6f}")
+    print(f"  Has inf: {np.any(np.isinf(X_train_original))}, Has nan: {np.any(np.isnan(X_train_original))}")
+    
+    try:
+        # Get column order
+        column_order = available_orderings[column_order_strategy]
+        print(f"Column order: {column_order}")
+        
+        # Run the exact same function that crashes (using copy version functions)
+        print("\nCalling run_vanilla...")
+        result_row, X_synth, col_names_reordered = run_vanilla(
+            X_train_original, X_test_original, col_names, categorical_cols,
+            column_order, config, seed, train_size, rep, 
+            algorithm, column_order_strategy
+        )
+        
+        print("SUCCESS! No crash occurred in copy version.")
+        print(f"Generated synthetic data shape: {X_synth.shape}")
+        print(f"Synthetic data stats: min={np.min(X_synth):.6f}, max={np.max(X_synth):.6f}")
+        
+    except Exception as e:
+        print(f"CRASH REPRODUCED IN COPY VERSION!")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        print(f"This confirms the bug exists in both versions.")
+        raise
+
 def main():
     """Main CLI interface for Experiment 1."""
     parser = argparse.ArgumentParser(description='Run Experiment 1')
@@ -400,7 +472,15 @@ def main():
                        help='Column ordering strategy')
     parser.add_argument('--output', type=str, default=None,
                        help='Output directory (auto-generated if not specified)')
+    parser.add_argument('--test-bug', action='store_true',
+                       help='Test the specific problematic combination that causes TabPFN to crash')
+    
     args = parser.parse_args()
+    
+    # Test problematic combination if requested
+    if args.test_bug:
+        test_problematic_combination()
+        return
 
     # Show DAG and CPDAG info first
     dag, col_names, _ = get_dag_and_config(False)
